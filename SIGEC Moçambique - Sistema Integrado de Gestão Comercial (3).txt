@@ -1,0 +1,1631 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { 
+  LayoutDashboard, ShoppingBag, ShoppingCart, Package, Users, Truck, 
+  Wallet, FileText, Search, Plus, Filter, Download, 
+  Printer, CheckCircle, AlertTriangle, XCircle, ArrowUpRight, ArrowDownRight,
+  TrendingUp, CreditCard, RefreshCw, Eye, Edit, Trash2, ChevronRight, UserCheck, Bell,
+  Menu, MoreHorizontal, ChevronDown, Camera, QrCode, SwitchCamera, Zap, Award
+} from 'lucide-react';
+import { 
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
+
+// --- INITIAL DUMMY DATA FOR MOZAMBIQUE COMMERCIAL ENVIRONMENT ---
+const INITIAL_PRODUCTS = [
+  { id: 'PROD-001', code: 'PRD7890', name: 'Arroz Top Star 25kg', category: 'Alimentar', buyPrice: 1250, sellPrice: 1550, stock: 45, minStock: 10, unit: 'Saco', supplierId: 'FOR-001', supplierName: 'AgroMoz Lda' },
+  { id: 'PROD-002', code: 'PRD7891', name: 'Óleo Alimentar Feira 5L', category: 'Alimentar', buyPrice: 520, sellPrice: 650, stock: 8, minStock: 15, unit: 'Garrafão', supplierId: 'FOR-001', supplierName: 'AgroMoz Lda' },
+  { id: 'PROD-003', code: 'PRD7892', name: 'Açúcar Castanho Maputo 1kg', category: 'Alimentar', buyPrice: 65, sellPrice: 85, stock: 120, minStock: 30, unit: 'Kg', supplierId: 'FOR-002', supplierName: 'Distribuidora do Sul' },
+  { id: 'PROD-004', code: 'PRD7893', name: 'Sabão em Pó Omo 500g', category: 'Higiene', buyPrice: 80, sellPrice: 110, stock: 0, minStock: 20, unit: 'Pacote', supplierId: 'FOR-002', supplierName: 'Distribuidora do Sul' },
+  { id: 'PROD-005', code: 'PRD7894', name: 'Farinha de Milho Mercearia 10kg', category: 'Alimentar', buyPrice: 380, sellPrice: 480, stock: 25, minStock: 12, unit: 'Saco', supplierId: 'FOR-001', supplierName: 'AgroMoz Lda' },
+  { id: 'PROD-006', code: 'PRD7895', name: 'Agua Mineral Vumba 1.5L', category: 'Bebidas', buyPrice: 30, sellPrice: 50, stock: 5, minStock: 24, unit: 'Garrafa', supplierId: 'FOR-003', supplierName: 'Bebidas de Moçambique' },
+];
+
+const INITIAL_CLIENTS = [
+  { id: 'CLI-001', name: 'Mercearia Central Matola', nuit: '400123456', phone: '+258 84 123 4567', email: 'contacto@merceariamatola.co.mz', address: 'Av. das Indústrias, Matola', creditLimit: 50000, balance: 12500 },
+  { id: 'CLI-002', name: 'Restaurante Baía de Maputo', nuit: '400987654', phone: '+258 82 987 6543', email: 'compras@baiamaputo.co.mz', address: 'Av. da Marginal, Maputo', creditLimit: 100000, balance: 0 },
+  { id: 'CLI-003', name: 'Hotel Polana Plaza', nuit: '400555888', phone: '+258 87 555 8888', email: 'financeiro@polanaplaza.co.mz', address: 'Av. Julius Nyerere, Maputo', creditLimit: 150000, balance: 42000 },
+  { id: 'CLI-004', name: 'Cliente Geral Balcão', nuit: '999999999', phone: '+258 84 000 0000', email: 'balcao@sigec.co.mz', address: 'Maputo', creditLimit: 0, balance: 0 }
+];
+
+const INITIAL_SUPPLIERS = [
+  { id: 'FOR-001', name: 'AgroMoz Lda', nuit: '400111222', phone: '+258 84 333 4444', email: 'vendas@agromoz.co.mz', address: 'Estrada Nacional N1, Zimpeto', balance: 35000 },
+  { id: 'FOR-002', name: 'Distribuidora do Sul', nuit: '400333444', phone: '+258 82 555 6666', email: 'comercial@distsul.co.mz', address: 'Bairro do Jardim, Maputo', balance: 0 },
+  { id: 'FOR-003', name: 'Bebidas de Moçambique', nuit: '400777888', phone: '+258 86 111 2222', email: 'pedidos@bebidasmoz.co.mz', address: 'Machava, Matola', balance: 18500 }
+];
+
+const INITIAL_SALES = [
+  { 
+    id: 'VND-1001', 
+    date: '2026-11-01', 
+    clientId: 'CLI-001', 
+    clientName: 'Mercearia Central Matola', 
+    items: [
+      { productId: 'PROD-001', name: 'Arroz Top Star 25kg', qty: 10, price: 1550, buyPrice: 1250, total: 15500 }
+    ], 
+    subtotal: 15500, discount: 500, tax: 0, total: 15000, paymentMethod: 'M-Pesa', status: 'PAID', paidAmount: 15000, seller: 'João Manhiça' 
+  },
+  { 
+    id: 'VND-1002', 
+    date: '2026-11-02', 
+    clientId: 'CLI-003', 
+    clientName: 'Hotel Polana Plaza', 
+    items: [
+      { productId: 'PROD-003', name: 'Açúcar Castanho Maputo 1kg', qty: 100, price: 85, buyPrice: 65, total: 8500 },
+      { productId: 'PROD-005', name: 'Farinha de Milho Mercearia 10kg', qty: 20, price: 480, buyPrice: 380, total: 9600 }
+    ], 
+    subtotal: 18100, discount: 0, tax: 0, total: 18100, paymentMethod: 'Crédito', status: 'PENDING', paidAmount: 0, seller: 'Maria Santos' 
+  }
+];
+
+const INITIAL_PURCHASES = [
+  {
+    id: 'CMP-2001',
+    invoiceNo: 'FT-2026/889',
+    date: '2026-10-28',
+    supplierId: 'FOR-001',
+    supplierName: 'AgroMoz Lda',
+    items: [
+      { productId: 'PROD-001', name: 'Arroz Top Star 25kg', qty: 50, price: 1250, total: 62500 }
+    ],
+    total: 62500,
+    status: 'PAID',
+    paymentMethod: 'Transferência Bancária'
+  }
+];
+
+const INITIAL_FINANCIAL_TRANSACTIONS = [
+  { id: 'FIN-001', date: '2026-11-01', type: 'RECEITA', category: 'Vendas Directas', description: 'Pagamento Venda VND-1001', amount: 15000, status: 'CONCLUIDO' },
+  { id: 'FIN-002', date: '2026-11-02', type: 'DESPESA', category: 'Renda & Instalações', description: 'Pagamento de Renda do Armazém', amount: 25000, status: 'CONCLUIDO' },
+  { id: 'FIN-003', date: '2026-11-02', type: 'DESPESA', category: 'Energia & Água', description: 'Fatura EDM / FIPAG', amount: 4500, status: 'CONCLUIDO' }
+];
+
+const INITIAL_STOCK_MOVEMENTS = [
+  { id: 'MOV-001', date: '2026-10-28 10:30', productId: 'PROD-001', productName: 'Arroz Top Star 25kg', type: 'ENTRADA', qty: 50, reason: 'Compra CMP-2001', user: 'Carlos Silva' },
+  { id: 'MOV-002', date: '2026-11-01 14:15', productId: 'PROD-001', productName: 'Arroz Top Star 25kg', type: 'SAIDA', qty: 10, reason: 'Venda VND-1001', user: 'João Manhiça' },
+  { id: 'MOV-003', date: '2026-11-02 09:00', productId: 'PROD-004', productName: 'Sabão em Pó Omo 500g', type: 'AJUSTE', qty: -2, reason: 'Danificado no transporte', user: 'Carlos Silva' }
+];
+
+// --- DEFENSIVE BARCODE / QR SCANNER MODAL COMPONENT ---
+function BarcodeScannerModal({ onClose, onScanSuccess, title = "Scanner de Código de Barras & QR" }) {
+  const videoRef = useRef(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const [cameraError, setCameraError] = useState(null);
+  const [manualCode, setManualCode] = useState('');
+
+  useEffect(() => {
+    let currentStream = null;
+
+    async function startCamera() {
+      try {
+        setCameraError(null);
+
+        // Defensive check for MediaDevices API availability
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setCameraError("A câmara não é suportada ou está bloqueada neste navegador/iframe.");
+          return;
+        }
+
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { exact: facingMode } }
+          });
+        } catch (errFallback) {
+          // Fallback to standard camera query if exact facingMode fails
+          currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+
+        if (videoRef.current && currentStream) {
+          videoRef.current.srcObject = currentStream;
+        }
+      } catch (err) {
+        console.warn("Permissão de câmara indisponível:", err);
+        setCameraError("Permissão de câmara negada ou indisponível. Utilize a entrada manual.");
+      }
+    }
+
+    startCamera();
+
+    return () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [facingMode]);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  const handleManualSubmit = (e) => {
+    e.preventDefault();
+    if (manualCode.trim()) {
+      onScanSuccess(manualCode.trim());
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3">
+      <div className="bg-slate-900 text-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-amber-500/30 flex flex-col">
+        {/* MODAL HEADER WITH VIMO GOLD ACCENTS */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
+              <QrCode size={18} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-white">{title}</h3>
+              <p className="text-[11px] text-amber-400/80">VIMO Technology Engine</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+          >
+            <XCircle size={22} />
+          </button>
+        </div>
+
+        {/* CAMERA VIEWPORT WITH SCANNER AIM */}
+        <div className="relative bg-slate-950 h-64 sm:h-72 flex items-center justify-center overflow-hidden">
+          {cameraError ? (
+            <div className="p-6 text-center text-xs text-amber-400 space-y-2 max-w-xs">
+              <AlertTriangle size={32} className="mx-auto text-amber-400 mb-1" />
+              <p className="font-semibold">{cameraError}</p>
+              <p className="text-[10px] text-slate-400">Pode introduzir o código manualmente no campo abaixo.</p>
+            </div>
+          ) : (
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              className="w-full h-full object-cover"
+            />
+          )}
+
+          {/* VISUAL SCANNING OVERLAY FRAME */}
+          {!cameraError && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-56 h-36 border-2 border-amber-400 rounded-2xl relative shadow-[0_0_30px_rgba(245,158,11,0.3)] flex items-center justify-center">
+                <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-amber-400 rounded-tl-lg" />
+                <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-amber-400 rounded-tr-lg" />
+                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-amber-400 rounded-bl-lg" />
+                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-amber-400 rounded-br-lg" />
+                <div className="w-full h-0.5 bg-red-500 shadow-[0_0_8px_#ef4444] animate-pulse" />
+              </div>
+            </div>
+          )}
+
+          {/* CAMERA TOGGLE BUTTON */}
+          {!cameraError && (
+            <button 
+              onClick={toggleCamera} 
+              className="absolute bottom-3 right-3 p-2.5 bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md rounded-full text-white border border-amber-500/40 transition"
+              title="Alternar Câmara"
+            >
+              <SwitchCamera size={18} />
+            </button>
+          )}
+        </div>
+
+        {/* QUICK MANUAL CODE ENTRY & DEMO SHORTCUTS */}
+        <div className="p-4 bg-slate-900 space-y-3">
+          <form onSubmit={handleManualSubmit} className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Digite o código (ex: PRD7890)..." 
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              className="flex-1 bg-slate-950 text-xs px-3 py-2.5 rounded-xl border border-slate-700 text-white outline-none focus:border-amber-500"
+            />
+            <button 
+              type="submit"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition"
+            >
+              Confirmar
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-slate-800">
+            <span className="text-[10px] text-slate-400 block mb-1.5 font-medium">Atalhos rápidos para teste:</span>
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => onScanSuccess('PRD7890')} className="px-2 py-1 bg-slate-950 hover:bg-slate-800 text-[10px] text-amber-400 rounded-lg border border-slate-800">
+                PRD7890 (Arroz 25kg)
+              </button>
+              <button onClick={() => onScanSuccess('PRD7891')} className="px-2 py-1 bg-slate-950 hover:bg-slate-800 text-[10px] text-amber-400 rounded-lg border border-slate-800">
+                PRD7891 (Óleo 5L)
+              </button>
+              <button onClick={() => onScanSuccess('PRD7892')} className="px-2 py-1 bg-slate-950 hover:bg-slate-800 text-[10px] text-amber-400 rounded-lg border border-slate-800">
+                PRD7892 (Açúcar 1kg)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- MAIN APP COMPONENT ---
+export default function App() {
+  const [products, setProducts] = useState(() => {
+    const saved = localStorage.getItem('sigec_products');
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+  const [clients, setClients] = useState(() => {
+    const saved = localStorage.getItem('sigec_clients');
+    return saved ? JSON.parse(saved) : INITIAL_CLIENTS;
+  });
+  const [suppliers, setSuppliers] = useState(() => {
+    const saved = localStorage.getItem('sigec_suppliers');
+    return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+  });
+  const [sales, setSales] = useState(() => {
+    const saved = localStorage.getItem('sigec_sales');
+    return saved ? JSON.parse(saved) : INITIAL_SALES;
+  });
+  const [purchases, setPurchases] = useState(() => {
+    const saved = localStorage.getItem('sigec_purchases');
+    return saved ? JSON.parse(saved) : INITIAL_PURCHASES;
+  });
+  const [financials, setFinancials] = useState(() => {
+    const saved = localStorage.getItem('sigec_financials');
+    return saved ? JSON.parse(saved) : INITIAL_FINANCIAL_TRANSACTIONS;
+  });
+  const [stockMovements, setStockMovements] = useState(() => {
+    const saved = localStorage.getItem('sigec_stock_movements');
+    return saved ? JSON.parse(saved) : INITIAL_STOCK_MOVEMENTS;
+  });
+
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [currency, setCurrency] = useState('MZN');
+  const [currentUserRole, setCurrentUserRole] = useState('ADMIN');
+  const [activeInvoice, setActiveInvoice] = useState(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showMoreMenuMobile, setShowMoreMenuMobile] = useState(false);
+
+  useEffect(() => { localStorage.setItem('sigec_products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { localStorage.setItem('sigec_clients', JSON.stringify(clients)); }, [clients]);
+  useEffect(() => { localStorage.setItem('sigec_suppliers', JSON.stringify(suppliers)); }, [suppliers]);
+  useEffect(() => { localStorage.setItem('sigec_sales', JSON.stringify(sales)); }, [sales]);
+  useEffect(() => { localStorage.setItem('sigec_purchases', JSON.stringify(purchases)); }, [purchases]);
+  useEffect(() => { localStorage.setItem('sigec_financials', JSON.stringify(financials)); }, [financials]);
+  useEffect(() => { localStorage.setItem('sigec_stock_movements', JSON.stringify(stockMovements)); }, [stockMovements]);
+
+  const formatMoney = (amount) => {
+    const val = Number(amount || 0);
+    if (currency === 'USD') return `$ ${(val / 63.8).toFixed(2)}`;
+    if (currency === 'EUR') return `€ ${(val / 68.5).toFixed(2)}`;
+    return `${val.toLocaleString('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT`;
+  };
+
+  const lowStockCount = useMemo(() => products.filter(p => p.stock > 0 && p.stock <= p.minStock).length, [products]);
+  const outOfStockCount = useMemo(() => products.filter(p => p.stock === 0).length, [products]);
+
+  const resetToDemoData = () => {
+    if (window.confirm("Deseja repor os dados originais de demonstração da VIMO?")) {
+      setProducts(INITIAL_PRODUCTS);
+      setClients(INITIAL_CLIENTS);
+      setSuppliers(INITIAL_SUPPLIERS);
+      setSales(INITIAL_SALES);
+      setPurchases(INITIAL_PURCHASES);
+      setFinancials(INITIAL_FINANCIAL_TRANSACTIONS);
+      setStockMovements(INITIAL_STOCK_MOVEMENTS);
+    }
+  };
+
+  return (
+    <div className="flex h-screen w-full bg-slate-100 font-sans text-slate-800 overflow-hidden">
+      {/* MOBILE OVERLAY BACKDROP */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR NAVIGATION - VIMO BRANDED */}
+      <aside className={`
+        fixed md:static inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col justify-between 
+        transform transition-transform duration-300 ease-in-out shadow-2xl md:shadow-xl md:translate-x-0
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div>
+          {/* LOGO & BRANDING (VIMO - VISÃO MOÇAMBICANA) */}
+          <div className="p-4 md:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-br from-amber-400 to-amber-600 p-2 rounded-xl text-slate-950 font-black text-xl shadow-lg shadow-amber-500/20">
+                <ShoppingBag size={22} className="text-slate-950" />
+              </div>
+              <div>
+                <h1 className="font-extrabold text-base md:text-lg leading-tight tracking-wide text-white">SIGEC MOZ</h1>
+                <span className="text-[10px] md:text-xs text-amber-400 font-medium flex items-center gap-1">
+                  <Award size={12} /> VIMO Consultoria
+                </span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setMobileMenuOpen(false)} 
+              className="md:hidden text-slate-400 hover:text-white p-1"
+            >
+              <XCircle size={22} />
+            </button>
+          </div>
+
+          {/* USER ROLE SWITCHER */}
+          <div className="p-3 md:p-4 bg-slate-800/60 m-3 rounded-xl border border-slate-700/50">
+            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span>Perfil Activo:</span>
+              <UserCheck size={14} className="text-amber-400" />
+            </div>
+            <select 
+              value={currentUserRole}
+              onChange={(e) => setCurrentUserRole(e.target.value)}
+              className="w-full bg-slate-950 text-xs text-amber-300 font-semibold p-2.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="ADMIN">Administrador (Total)</option>
+              <option value="GESTOR">Gestor Comercial</option>
+              <option value="VENDEDOR">Funcionário Vendas (POS)</option>
+              <option value="STOCK">Fiel de Armazém (Stock)</option>
+            </select>
+          </div>
+
+          {/* MENU ITEMS */}
+          <nav className="mt-2 px-3 space-y-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+            <NavItem id="dashboard" icon={<LayoutDashboard size={18} />} label="Painel Principal" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'VENDEDOR') && (
+              <NavItem id="vendas" icon={<ShoppingCart size={18} />} label="Vendas & POS" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'STOCK') && (
+              <NavItem id="compras" icon={<ShoppingBag size={18} />} label="Gestão de Compras" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
+            <NavItem id="stock" icon={<Package size={18} />} label="Stock & Inventário" badge={lowStockCount + outOfStockCount} activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'VENDEDOR') && (
+              <NavItem id="clientes" icon={<Users size={18} />} label="Clientes" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'STOCK') && (
+              <NavItem id="fornecedores" icon={<Truck size={18} />} label="Fornecedores" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR') && (
+              <NavItem id="financeiro" icon={<Wallet size={18} />} label="Módulo Financeiro" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR') && (
+              <NavItem id="relatorios" icon={<FileText size={18} />} label="Relatórios Efetivos" activeTab={activeTab} setActiveTab={setActiveTab} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
+          </nav>
+        </div>
+
+        {/* FOOTER ACTIONS */}
+        <div className="p-3 md:p-4 border-t border-slate-800 space-y-2 bg-slate-950">
+          <button 
+            onClick={resetToDemoData}
+            className="w-full text-xs flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-lg transition active:scale-95"
+          >
+            <RefreshCw size={14} /> Restaurar Dados Demo
+          </button>
+          <div className="text-[10px] text-slate-500 text-center">
+            VIMO &copy; 2026 - Soluções Tecnológicas
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
+        {/* TOPBAR HEADER */}
+        <header className="bg-white border-b border-slate-200 px-3 md:px-6 py-2.5 md:py-3 flex items-center justify-between shadow-sm z-30">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <button 
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 active:bg-slate-200"
+              aria-label="Abrir Menu"
+            >
+              <Menu size={20} />
+            </button>
+            
+            <h2 className="text-sm md:text-xl font-bold text-slate-800 truncate max-w-[150px] sm:max-w-none">
+              {activeTab === 'dashboard' && 'Painel Principal'}
+              {activeTab === 'vendas' && 'POS Vendas'}
+              {activeTab === 'compras' && 'Compras'}
+              {activeTab === 'stock' && 'Stock'}
+              {activeTab === 'clientes' && 'Clientes'}
+              {activeTab === 'fornecedores' && 'Fornecedores'}
+              {activeTab === 'financeiro' && 'Financeiro'}
+              {activeTab === 'relatorios' && 'Relatórios'}
+            </h2>
+          </div>
+
+          <div className="flex items-center space-x-2 md:space-x-4">
+            {/* ALERT BADGE */}
+            {(lowStockCount > 0 || outOfStockCount > 0) && (
+              <button 
+                onClick={() => setActiveTab('stock')}
+                className="flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-[11px] md:text-xs font-semibold hover:bg-amber-100 transition"
+              >
+                <Bell size={13} className="text-amber-600 animate-pulse" />
+                <span className="hidden sm:inline">{lowStockCount + outOfStockCount} Alerta(s) Stock</span>
+                <span className="sm:hidden font-bold">{lowStockCount + outOfStockCount}</span>
+              </button>
+            )}
+
+            {/* CURRENCY SWITCHER */}
+            <div className="flex items-center bg-slate-100 p-0.5 md:p-1 rounded-lg border border-slate-200">
+              <button 
+                onClick={() => setCurrency('MZN')} 
+                className={`px-2 py-1 text-[11px] md:text-xs font-bold rounded ${currency === 'MZN' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-600'}`}
+              >
+                MT
+              </button>
+              <button 
+                onClick={() => setCurrency('USD')} 
+                className={`px-2 py-1 text-[11px] md:text-xs font-bold rounded ${currency === 'USD' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-600'}`}
+              >
+                $
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* TAB BODY CONTENT */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 bg-slate-50 pb-20 md:pb-6">
+          {activeTab === 'dashboard' && (
+            <DashboardView 
+              sales={sales} 
+              purchases={purchases} 
+              products={products} 
+              clients={clients} 
+              suppliers={suppliers} 
+              financials={financials}
+              formatMoney={formatMoney}
+              setActiveTab={setActiveTab}
+            />
+          )}
+
+          {activeTab === 'vendas' && (
+            <SalesPOSView 
+              products={products} 
+              setProducts={setProducts} 
+              clients={clients} 
+              setClients={setClients}
+              sales={sales} 
+              setSales={setSales} 
+              financials={financials}
+              setFinancials={setFinancials}
+              stockMovements={stockMovements}
+              setStockMovements={setStockMovements}
+              formatMoney={formatMoney}
+              setActiveInvoice={setActiveInvoice}
+              setShowInvoiceModal={setShowInvoiceModal}
+              currentUserRole={currentUserRole}
+            />
+          )}
+
+          {activeTab === 'compras' && (
+            <PurchasesView 
+              products={products} 
+              setProducts={setProducts} 
+              suppliers={suppliers} 
+              setSuppliers={setSuppliers}
+              purchases={purchases} 
+              setPurchases={setPurchases}
+              financials={financials}
+              setFinancials={setFinancials}
+              stockMovements={stockMovements}
+              setStockMovements={setStockMovements}
+              formatMoney={formatMoney}
+            />
+          )}
+
+          {activeTab === 'stock' && (
+            <StockView 
+              products={products} 
+              setProducts={setProducts} 
+              suppliers={suppliers}
+              stockMovements={stockMovements}
+              setStockMovements={setStockMovements}
+              formatMoney={formatMoney}
+            />
+          )}
+
+          {activeTab === 'clientes' && (
+            <ClientsView 
+              clients={clients} 
+              setClients={setClients} 
+              sales={sales}
+              formatMoney={formatMoney}
+            />
+          )}
+
+          {activeTab === 'fornecedores' && (
+            <SuppliersView 
+              suppliers={suppliers} 
+              setSuppliers={setSuppliers} 
+              purchases={purchases} 
+              formatMoney={formatMoney}
+            />
+          )}
+
+          {activeTab === 'financeiro' && (
+            <FinancialView 
+              financials={financials} 
+              setFinancials={setFinancials} 
+              sales={sales} 
+              purchases={purchases} 
+              formatMoney={formatMoney}
+            />
+          )}
+
+          {activeTab === 'relatorios' && (
+            <ReportsView 
+              sales={sales} 
+              purchases={purchases} 
+              products={products} 
+              clients={clients} 
+              suppliers={suppliers} 
+              financials={financials} 
+              formatMoney={formatMoney}
+            />
+          )}
+        </main>
+
+        {/* BOTTOM NAVIGATION BAR FOR MOBILE SMARTPHONES */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 text-slate-400 flex justify-around items-center h-16 z-30 shadow-lg px-1">
+          <button 
+            onClick={() => { setActiveTab('dashboard'); setShowMoreMenuMobile(false); }}
+            className={`flex flex-col items-center justify-center w-full h-full py-1 ${activeTab === 'dashboard' ? 'text-amber-400 font-bold' : 'hover:text-slate-200'}`}
+          >
+            <LayoutDashboard size={18} />
+            <span className="text-[10px] mt-1">Painel</span>
+          </button>
+
+          {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'VENDEDOR') && (
+            <button 
+              onClick={() => { setActiveTab('vendas'); setShowMoreMenuMobile(false); }}
+              className={`flex flex-col items-center justify-center w-full h-full py-1 ${activeTab === 'vendas' ? 'text-amber-400 font-bold' : 'hover:text-slate-200'}`}
+            >
+              <ShoppingCart size={18} />
+              <span className="text-[10px] mt-1">POS Vendas</span>
+            </button>
+          )}
+
+          <button 
+            onClick={() => { setActiveTab('stock'); setShowMoreMenuMobile(false); }}
+            className={`flex flex-col items-center justify-center w-full h-full py-1 relative ${activeTab === 'stock' ? 'text-amber-400 font-bold' : 'hover:text-slate-200'}`}
+          >
+            <Package size={18} />
+            <span className="text-[10px] mt-1">Stock</span>
+            {(lowStockCount + outOfStockCount > 0) && (
+              <span className="absolute top-1.5 right-4 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            )}
+          </button>
+
+          {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'VENDEDOR') && (
+            <button 
+              onClick={() => { setActiveTab('clientes'); setShowMoreMenuMobile(false); }}
+              className={`flex flex-col items-center justify-center w-full h-full py-1 ${activeTab === 'clientes' ? 'text-amber-400 font-bold' : 'hover:text-slate-200'}`}
+            >
+              <Users size={18} />
+              <span className="text-[10px] mt-1">Clientes</span>
+            </button>
+          )}
+
+          <button 
+            onClick={() => setShowMoreMenuMobile(!showMoreMenuMobile)}
+            className={`flex flex-col items-center justify-center w-full h-full py-1 ${showMoreMenuMobile ? 'text-amber-400 font-bold' : 'hover:text-slate-200'}`}
+          >
+            <MoreHorizontal size={18} />
+            <span className="text-[10px] mt-1">Mais</span>
+          </button>
+        </nav>
+
+        {/* MOBILE "MORE" POPUP MENU */}
+        {showMoreMenuMobile && (
+          <div className="md:hidden fixed bottom-16 right-2 bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl p-2 z-40 w-48 space-y-1">
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'STOCK') && (
+              <button 
+                onClick={() => { setActiveTab('compras'); setShowMoreMenuMobile(false); }}
+                className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-800 rounded-lg text-slate-200"
+              >
+                <ShoppingBag size={15} className="text-amber-400" /> Compras
+              </button>
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR' || currentUserRole === 'STOCK') && (
+              <button 
+                onClick={() => { setActiveTab('fornecedores'); setShowMoreMenuMobile(false); }}
+                className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-800 rounded-lg text-slate-200"
+              >
+                <Truck size={15} className="text-amber-400" /> Fornecedores
+              </button>
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR') && (
+              <button 
+                onClick={() => { setActiveTab('financeiro'); setShowMoreMenuMobile(false); }}
+                className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-800 rounded-lg text-slate-200"
+              >
+                <Wallet size={15} className="text-amber-400" /> Financeiro
+              </button>
+            )}
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'GESTOR') && (
+              <button 
+                onClick={() => { setActiveTab('relatorios'); setShowMoreMenuMobile(false); }}
+                className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-800 rounded-lg text-slate-200"
+              >
+                <FileText size={15} className="text-amber-400" /> Relatórios
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* INVOICE / RECEIPT MODAL FOR PRINTING */}
+      {showInvoiceModal && activeInvoice && (
+        <InvoiceModal 
+          invoice={activeInvoice} 
+          onClose={() => setShowInvoiceModal(false)} 
+          formatMoney={formatMoney} 
+        />
+      )}
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS ---
+
+function NavItem({ id, icon, label, badge, activeTab, setActiveTab, setMobileMenuOpen }) {
+  const active = activeTab === id;
+  return (
+    <button
+      onClick={() => {
+        setActiveTab(id);
+        if (setMobileMenuOpen) setMobileMenuOpen(false);
+      }}
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs md:text-sm font-medium transition-all ${
+        active 
+          ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20' 
+          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+      }`}
+    >
+      <div className="flex items-center gap-2.5">
+        {icon}
+        <span>{label}</span>
+      </div>
+      {badge !== undefined && badge > 0 && (
+        <span className="bg-amber-400 text-slate-950 font-bold text-[10px] px-2 py-0.5 rounded-full">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// 1. DASHBOARD VIEW
+function DashboardView({ sales, purchases, products, clients, suppliers, financials, formatMoney, setActiveTab }) {
+  const totalSalesVal = sales.filter(s => s.status === 'PAID').reduce((acc, s) => acc + s.total, 0);
+  const totalPurchasesVal = purchases.reduce((acc, p) => acc + p.total, 0);
+  const totalExpense = financials.filter(f => f.type === 'DESPESA').reduce((acc, f) => acc + f.amount, 0);
+
+  const estimatedGrossProfit = sales.reduce((acc, sale) => {
+    const saleCost = sale.items.reduce((cAcc, item) => cAcc + ((item.buyPrice || 0) * item.qty), 0);
+    return acc + (sale.total - saleCost);
+  }, 0);
+
+  const salesDataChart = [
+    { name: 'Seg', Vendas: 12000 },
+    { name: 'Ter', Vendas: 18500 },
+    { name: 'Qua', Vendas: 15000 },
+    { name: 'Qui', Vendas: 22000 },
+    { name: 'Sex', Vendas: 31000 },
+    { name: 'Sáb', Vendas: 28000 },
+    { name: 'Dom', Vendas: 14000 }
+  ];
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+      {/* KPI CARDS GRID */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <KpiCard title="Total Vendas Pagas" value={formatMoney(totalSalesVal)} icon={<ShoppingCart className="text-emerald-600" size={20} />} trend="+12.5%" />
+        <KpiCard title="Total Compras" value={formatMoney(totalPurchasesVal)} icon={<ShoppingBag className="text-blue-600" size={20} />} trend="-3.2%" />
+        <KpiCard title="Lucro Bruto Estimado" value={formatMoney(estimatedGrossProfit)} icon={<TrendingUp className="text-amber-600" size={20} />} isProfit />
+        <KpiCard title="Despesas Operacionais" value={formatMoney(totalExpense)} icon={<ArrowDownRight className="text-red-600" size={20} />} isExpense />
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <MiniStat title="Produtos Registados" value={products.length} onClick={() => setActiveTab('stock')} />
+        <MiniStat title="Stock Baixo" value={products.filter(p => p.stock > 0 && p.stock <= p.minStock).length} alert onClick={() => setActiveTab('stock')} />
+        <MiniStat title="Produtos Esgotados" value={products.filter(p => p.stock === 0).length} danger onClick={() => setActiveTab('stock')} />
+        <MiniStat title="Clientes Activos" value={clients.length} onClick={() => setActiveTab('clientes')} />
+      </div>
+
+      {/* CHARTS SECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="lg:col-span-2 bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold text-slate-800 text-sm md:text-base mb-4 flex items-center justify-between">
+            <span>Evolução das Vendas da Semana</span>
+            <span className="text-xs text-slate-500 font-normal">Valores em MT</span>
+          </h3>
+          <div className="h-60 md:h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={salesDataChart}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value) => [`${value} MT`, 'Vendas']} />
+                <Bar dataKey="Vendas" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm md:text-base mb-3">Resumo da Carteira</h3>
+            <div className="space-y-3 text-xs md:text-sm">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                <span className="text-slate-600">Dívidas de Clientes:</span>
+                <span className="font-bold text-amber-600">
+                  {formatMoney(clients.reduce((a, c) => a + (c.balance || 0), 0))}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                <span className="text-slate-600">Pagar a Fornecedores:</span>
+                <span className="font-bold text-red-600">
+                  {formatMoney(suppliers.reduce((a, s) => a + (s.balance || 0), 0))}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                <span className="text-slate-600">Total Fornecedores:</span>
+                <span className="font-bold text-slate-800">{suppliers.length}</span>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setActiveTab('relatorios')}
+            className="w-full mt-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold rounded-xl text-xs transition"
+          >
+            Ver Relatórios Completos
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ title, value, icon, trend, isProfit, isExpense }) {
+  return (
+    <div className="bg-white p-3.5 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-slate-500 font-medium truncate">{title}</span>
+        <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">{icon}</div>
+      </div>
+      <div>
+        <div className={`text-base md:text-xl font-extrabold ${isProfit ? 'text-amber-600' : isExpense ? 'text-red-600' : 'text-slate-900'}`}>
+          {value}
+        </div>
+        {trend && <span className="text-[10px] text-emerald-600 font-medium">{trend} em relação ao mês anterior</span>}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ title, value, alert, danger, onClick }) {
+  return (
+    <div 
+      onClick={onClick}
+      className={`p-3 rounded-xl border cursor-pointer transition hover:shadow-md ${
+        danger ? 'bg-red-50 border-red-200 text-red-900' :
+        alert ? 'bg-amber-50 border-amber-200 text-amber-900' :
+        'bg-white border-slate-200 text-slate-800'
+      }`}
+    >
+      <div className="text-[11px] font-medium opacity-80 truncate">{title}</div>
+      <div className="text-lg md:text-2xl font-black mt-1">{value}</div>
+    </div>
+  );
+}
+
+// 2. POS / SALES VIEW
+function SalesPOSView({ products, setProducts, clients, setClients, sales, setSales, financials, setFinancials, stockMovements, setStockMovements, formatMoney, setActiveInvoice, setShowInvoiceModal, currentUserRole }) {
+  const [cart, setCart] = useState([]);
+  const [selectedClient, setSelectedClient] = useState('CLI-004'); // Default Balcão
+  const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
+  const [discount, setDiscount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activePosTab, setActivePosTab] = useState('catalog');
+  const [showScannerModal, setShowScannerModal] = useState(false);
+
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const addToCart = (product) => {
+    if (product.stock <= 0) {
+      alert("Produto esgotado no stock!");
+      return;
+    }
+    const existing = cart.find(item => item.productId === product.id);
+    if (existing) {
+      if (existing.qty + 1 > product.stock) {
+        alert("Quantidade selecionada excede o stock disponível!");
+        return;
+      }
+      setCart(cart.map(item => item.productId === product.id ? { ...item, qty: item.qty + 1, total: (item.qty + 1) * item.price } : item));
+    } else {
+      setCart([...cart, { productId: product.id, name: product.name, qty: 1, price: product.sellPrice, buyPrice: product.buyPrice, total: product.sellPrice }]);
+    }
+  };
+
+  const handleBarcodeScanned = (scannedCode) => {
+    setShowScannerModal(false);
+    const matchedProduct = products.find(p => p.code.toLowerCase() === scannedCode.toLowerCase());
+    
+    if (matchedProduct) {
+      addToCart(matchedProduct);
+    } else {
+      alert(`Código "${scannedCode}" não encontrado no catálogo.`);
+      setSearchQuery(scannedCode);
+    }
+  };
+
+  const removeFromCart = (productId) => {
+    setCart(cart.filter(item => item.productId !== productId));
+  };
+
+  const updateCartQty = (productId, qty) => {
+    const prod = products.find(p => p.id === productId);
+    if (qty > prod.stock) {
+      alert("Quantidade excede o stock!");
+      return;
+    }
+    if (qty <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart(cart.map(item => item.productId === productId ? { ...item, qty, total: qty * item.price } : item));
+  };
+
+  const subtotal = cart.reduce((acc, item) => acc + item.total, 0);
+  const grandTotal = Math.max(0, subtotal - Number(discount || 0));
+
+  const handleCheckout = () => {
+    if (cart.length === 0) {
+      alert("Adicione pelo menos um produto ao carrinho!");
+      return;
+    }
+
+    const clientObj = clients.find(c => c.id === selectedClient);
+    const isCredit = paymentMethod === 'Crédito';
+
+    if (isCredit && clientObj.id === 'CLI-004') {
+      alert("Selecione um cliente registado para vendas a crédito!");
+      return;
+    }
+
+    if (isCredit && (clientObj.balance + grandTotal > clientObj.creditLimit)) {
+      alert(`Limite de crédito excedido! Limite: ${formatMoney(clientObj.creditLimit)}, Saldo Actual: ${formatMoney(clientObj.balance)}`);
+      return;
+    }
+
+    const saleId = `VND-${Date.now().toString().slice(-4)}`;
+    const today = new Date().toISOString().split('T')[0];
+
+    const newSale = {
+      id: saleId,
+      date: today,
+      clientId: clientObj.id,
+      clientName: clientObj.name,
+      items: cart,
+      subtotal,
+      discount: Number(discount || 0),
+      tax: 0,
+      total: grandTotal,
+      paymentMethod,
+      status: isCredit ? 'PENDING' : 'PAID',
+      paidAmount: isCredit ? 0 : grandTotal,
+      seller: 'Utilizador Activo'
+    };
+
+    setSales([newSale, ...sales]);
+
+    setProducts(products.map(p => {
+      const cartItem = cart.find(c => c.productId === p.id);
+      if (cartItem) {
+        return { ...p, stock: p.stock - cartItem.qty };
+      }
+      return p;
+    }));
+
+    const newMovements = cart.map(item => ({
+      id: `MOV-${Math.random().toString(36).substr(2, 6)}`,
+      date: new Date().toLocaleString(),
+      productId: item.productId,
+      productName: item.name,
+      type: 'SAIDA',
+      qty: item.qty,
+      reason: `Venda ${saleId}`,
+      user: 'Vendedor'
+    }));
+    setStockMovements([...newMovements, ...stockMovements]);
+
+    if (!isCredit) {
+      setFinancials([{
+        id: `FIN-${Date.now().toString().slice(-4)}`,
+        date: today,
+        type: 'RECEITA',
+        category: 'Vendas Directas',
+        description: `Recebimento Venda ${saleId} (${paymentMethod})`,
+        amount: grandTotal,
+        status: 'CONCLUIDO'
+      }, ...financials]);
+    } else {
+      setClients(clients.map(c => c.id === clientObj.id ? { ...c, balance: c.balance + grandTotal } : c));
+    }
+
+    setActiveInvoice(newSale);
+    setShowInvoiceModal(true);
+    setCart([]);
+    setDiscount(0);
+    setActivePosTab('catalog');
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* MOBILE TAB CONTROLLER FOR POS */}
+      <div className="md:hidden flex bg-slate-200 p-1 rounded-xl">
+        <button 
+          onClick={() => setActivePosTab('catalog')} 
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activePosTab === 'catalog' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
+        >
+          Catálogo Produtos ({products.length})
+        </button>
+        <button 
+          onClick={() => setActivePosTab('cart')} 
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition relative ${activePosTab === 'cart' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600'}`}
+        >
+          Carrinho ({cart.reduce((a, i) => a + i.qty, 0)})
+          {cart.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-amber-500 text-slate-950 font-black rounded-full text-[10px]">{cart.length}</span>}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* PRODUCTS CATALOG SECTION */}
+        <div className={`lg:col-span-2 space-y-4 ${activePosTab === 'cart' ? 'hidden md:block' : 'block'}`}>
+          <div className="bg-white p-3 md:p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
+            <Search size={18} className="text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Pesquisar produto por nome ou código..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs md:text-sm outline-none bg-transparent"
+            />
+            <button 
+              onClick={() => setShowScannerModal(true)}
+              className="bg-slate-900 hover:bg-slate-800 text-amber-400 p-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
+              title="Abrir Scanner de Código de Barras"
+            >
+              <Camera size={16} />
+              <span className="hidden sm:inline">Scanner</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 md:gap-3 max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+            {filteredProducts.map(product => (
+              <div 
+                key={product.id}
+                onClick={() => addToCart(product)}
+                className={`p-3 rounded-2xl border transition text-left cursor-pointer flex flex-col justify-between ${
+                  product.stock === 0 
+                    ? 'bg-slate-50 border-slate-200 opacity-60' 
+                    : 'bg-white border-slate-200 hover:border-amber-500 hover:shadow-md active:scale-95'
+                }`}
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-[10px] font-mono text-slate-400">{product.code}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      product.stock === 0 ? 'bg-red-100 text-red-700' :
+                      product.stock <= product.minStock ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {product.stock} {product.unit}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-xs md:text-sm text-slate-800 line-clamp-2">{product.name}</h4>
+                </div>
+                <div className="mt-3 flex justify-between items-center">
+                  <span className="font-extrabold text-xs md:text-sm text-slate-900">{formatMoney(product.sellPrice)}</span>
+                  <button className="p-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-500 hover:text-slate-950 transition">
+                    <Plus size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SHOPPING CART & CHECKOUT SECTION */}
+        <div className={`bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between ${activePosTab === 'catalog' ? 'hidden md:flex' : 'flex'}`}>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm md:text-base mb-3 pb-2 border-b border-slate-100 flex items-center justify-between">
+              <span>Carrinho de Compras</span>
+              <span className="text-xs text-slate-500 font-normal">{cart.length} itens</span>
+            </h3>
+
+            {/* CLIENT SELECTOR */}
+            <div className="mb-3">
+              <label className="text-[11px] text-slate-500 font-semibold mb-1 block">Cliente:</label>
+              <select 
+                value={selectedClient} 
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className="w-full text-xs p-2 bg-slate-50 rounded-xl border border-slate-200 font-medium"
+              >
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} {c.balance > 0 ? `(Dívida: ${c.balance} MT)` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* CART ITEMS LIST */}
+            <div className="space-y-2 max-h-48 overflow-y-auto mb-3 pr-1">
+              {cart.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400">Carrinho vazio. Selecione produtos ao lado.</div>
+              ) : (
+                cart.map(item => (
+                  <div key={item.productId} className="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                    <div className="truncate max-w-[120px]">
+                      <div className="font-bold text-slate-800 truncate">{item.name}</div>
+                      <div className="text-[10px] text-slate-400">{formatMoney(item.price)} un.</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input 
+                        type="number" 
+                        min="1" 
+                        value={item.qty} 
+                        onChange={(e) => updateCartQty(item.productId, parseInt(e.target.value) || 0)}
+                        className="w-10 text-center p-1 bg-white border border-slate-200 rounded font-bold text-xs"
+                      />
+                      <button onClick={() => removeFromCart(item.productId)} className="text-slate-400 hover:text-red-600">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* PAYMENT DETAILS */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-between items-center text-xs text-slate-600">
+                <span>Subtotal:</span>
+                <span className="font-bold">{formatMoney(subtotal)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-slate-600">
+                <span>Desconto (MT):</span>
+                <input 
+                  type="number" 
+                  value={discount} 
+                  onChange={(e) => setDiscount(e.target.value)}
+                  className="w-20 text-right p-1 bg-slate-50 border border-slate-200 rounded text-xs"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="mb-2">
+                <label className="text-[11px] text-slate-500 font-semibold mb-1 block">Forma de Pagamento:</label>
+                <select 
+                  value={paymentMethod} 
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full text-xs p-2 bg-slate-50 rounded-xl border border-slate-200 font-semibold text-amber-700"
+                >
+                  <option value="Dinheiro">Dinheiro (Espécie)</option>
+                  <option value="M-Pesa">M-Pesa</option>
+                  <option value="e-Mola">e-Mola</option>
+                  <option value="POS / Cartão">POS / Cartão Bancário</option>
+                  <option value="Transferência">Transferência Bancária</option>
+                  <option value="Crédito">Venda a Crédito (Conta Corrente)</option>
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex justify-between items-center mt-3">
+                <span className="text-xs font-bold text-amber-900">TOTAL A PAGAR:</span>
+                <span className="text-base md:text-lg font-black text-amber-700">{formatMoney(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleCheckout}
+            disabled={cart.length === 0}
+            className="w-full mt-4 py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-amber-400 font-black rounded-xl text-xs md:text-sm shadow-md transition active:scale-98"
+          >
+            Finalizar Venda & Emitir Recibo
+          </button>
+        </div>
+      </div>
+
+      {/* SCANNER MODAL FOR POS */}
+      {showScannerModal && (
+        <BarcodeScannerModal 
+          onClose={() => setShowScannerModal(false)}
+          onScanSuccess={handleBarcodeScanned}
+          title="Leitor de Código de Barras - POS"
+        />
+      )}
+    </div>
+  );
+}
+
+// 3. PURCHASES VIEW
+function PurchasesView({ products, setProducts, suppliers, purchases, setPurchases, financials, setFinancials, stockMovements, setStockMovements, formatMoney }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [supplierId, setSupplierId] = useState(suppliers[0]?.id || '');
+  const [invoiceNo, setInvoiceNo] = useState('');
+  const [purchaseItems, setPurchaseItems] = useState([]);
+  const [selectedProd, setSelectedProd] = useState(products[0]?.id || '');
+  const [qty, setQty] = useState(1);
+  const [buyPrice, setBuyPrice] = useState(products[0]?.buyPrice || 0);
+
+  const addItem = () => {
+    const prod = products.find(p => p.id === selectedProd);
+    setPurchaseItems([...purchaseItems, { productId: prod.id, name: prod.name, qty: Number(qty), price: Number(buyPrice), total: Number(qty) * Number(buyPrice) }]);
+  };
+
+  const handleSavePurchase = () => {
+    if (purchaseItems.length === 0) return;
+    const sup = suppliers.find(s => s.id === supplierId);
+    const totalVal = purchaseItems.reduce((a, i) => a + i.total, 0);
+    const purchaseId = `CMP-${Date.now().toString().slice(-4)}`;
+    const today = new Date().toISOString().split('T')[0];
+
+    setPurchases([{
+      id: purchaseId,
+      invoiceNo,
+      date: today,
+      supplierId: sup.id,
+      supplierName: sup.name,
+      items: purchaseItems,
+      total: totalVal,
+      status: 'PAID',
+      paymentMethod: 'Transferência Bancária'
+    }, ...purchases]);
+
+    setProducts(products.map(p => {
+      const item = purchaseItems.find(i => i.productId === p.id);
+      if (item) {
+        return { ...p, stock: p.stock + item.qty, buyPrice: item.price };
+      }
+      return p;
+    }));
+
+    const movements = purchaseItems.map(item => ({
+      id: `MOV-${Math.random().toString(36).substr(2, 6)}`,
+      date: new Date().toLocaleString(),
+      productId: item.productId,
+      productName: item.name,
+      type: 'ENTRADA',
+      qty: item.qty,
+      reason: `Compra ${purchaseId}`,
+      user: 'Gestor Stock'
+    }));
+    setStockMovements([...movements, ...stockMovements]);
+
+    setFinancials([{
+      id: `FIN-${Date.now().toString().slice(-4)}`,
+      date: today,
+      type: 'DESPESA',
+      category: 'Aquisição de Mercadoria',
+      description: `Pagamento Compra ${purchaseId} (${sup.name})`,
+      amount: totalVal,
+      status: 'CONCLUIDO'
+    }, ...financials]);
+
+    setShowAddModal(false);
+    setPurchaseItems([]);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="font-bold text-slate-800 text-base">Histórico de Compras de Stock</h3>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+        >
+          <Plus size={16} /> Registar Nova Compra
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+              <tr>
+                <th className="p-3">ID / Fatura</th>
+                <th className="p-3">Data</th>
+                <th className="p-3">Fornecedor</th>
+                <th className="p-3">Total Compra</th>
+                <th className="p-3">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {purchases.map(p => (
+                <tr key={p.id} className="hover:bg-slate-50">
+                  <td className="p-3 font-bold text-slate-800">{p.id} <span className="text-slate-400 font-normal">({p.invoiceNo})</span></td>
+                  <td className="p-3">{p.date}</td>
+                  <td className="p-3 font-medium">{p.supplierName}</td>
+                  <td className="p-3 font-extrabold text-amber-600">{formatMoney(p.total)}</td>
+                  <td className="p-3"><span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">{p.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-slate-100">
+          {purchases.map(p => (
+            <div key={p.id} className="p-3 space-y-1">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-800">{p.id}</span>
+                <span className="text-[10px] text-slate-400">{p.date}</span>
+              </div>
+              <div className="text-xs text-slate-600">{p.supplierName}</div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="font-black text-xs text-amber-600">{formatMoney(p.total)}</span>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">{p.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+          <div className="bg-white rounded-2xl p-4 md:p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-slate-800 text-base">Registar Nova Compra</h3>
+            
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label className="block text-slate-500 mb-1">Fornecedor:</label>
+                <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-lg">
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-slate-500 mb-1">Nº Fatura Fornecedor:</label>
+                <input type="text" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="FT-2026/00" className="w-full p-2 bg-slate-50 border rounded-lg" />
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl space-y-2 border">
+              <div className="text-xs font-bold text-slate-700">Adicionar Produtos à Compra</div>
+              <select value={selectedProd} onChange={(e) => setSelectedProd(e.target.value)} className="w-full p-2 bg-white border rounded-lg text-xs">
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <input type="number" placeholder="Qtd" value={qty} onChange={(e) => setQty(e.target.value)} className="p-2 bg-white border rounded-lg" />
+                <input type="number" placeholder="Preço Custo" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} className="p-2 bg-white border rounded-lg" />
+              </div>
+              <button onClick={addItem} className="w-full py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg">+ Adicionar à Lista</button>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <span className="font-bold">Itens na Compra:</span>
+              {purchaseItems.map((item, idx) => (
+                <div key={idx} className="flex justify-between p-1.5 bg-slate-100 rounded text-[11px]">
+                  <span>{item.name} (x{item.qty})</span>
+                  <span className="font-bold">{formatMoney(item.total)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2 border rounded-xl text-xs font-bold">Cancelar</button>
+              <button onClick={handleSavePurchase} className="flex-1 py-2 bg-amber-500 text-slate-950 rounded-xl text-xs font-bold">Confirmar Compra</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 4. STOCK & INVENTORY VIEW
+function StockView({ products, setProducts, suppliers, stockMovements, setStockMovements, formatMoney }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [newProd, setNewProd] = useState({ name: '', code: '', category: 'Alimentar', buyPrice: '', sellPrice: '', stock: '', minStock: '10', unit: 'Unidade' });
+
+  const handleAddProduct = () => {
+    if (!newProd.name || !newProd.sellPrice) return;
+    const prodId = `PROD-${Date.now().toString().slice(-4)}`;
+    const product = {
+      id: prodId,
+      code: newProd.code || `PRD${Math.floor(1000 + Math.random() * 9000)}`,
+      name: newProd.name,
+      category: newProd.category,
+      buyPrice: Number(newProd.buyPrice || 0),
+      sellPrice: Number(newProd.sellPrice || 0),
+      stock: Number(newProd.stock || 0),
+      minStock: Number(newProd.minStock || 5),
+      unit: newProd.unit
+    };
+
+    setProducts([...products, product]);
+    setShowAddModal(false);
+  };
+
+  const handleBarcodeScanned = (scannedCode) => {
+    setShowScannerModal(false);
+    setNewProd(prev => ({ ...prev, code: scannedCode }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="font-bold text-slate-800 text-base">Inventário de Produtos & Stock</h3>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+        >
+          <Plus size={16} /> Novo Produto
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {products.map(p => (
+          <div key={p.id} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-start mb-1">
+                <span className="text-[10px] font-mono text-slate-400">{p.code}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  p.stock === 0 ? 'bg-red-100 text-red-700' :
+                  p.stock <= p.minStock ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                }`}>
+                  {p.stock === 0 ? 'ESGOTADO' : `${p.stock} ${p.unit} em Stock`}
+                </span>
+              </div>
+              <h4 className="font-bold text-sm text-slate-800">{p.name}</h4>
+              <div className="text-[11px] text-slate-500 mt-0.5">Categoria: {p.category}</div>
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 block">Preço Venda</span>
+                <span className="font-extrabold text-amber-600">{formatMoney(p.sellPrice)}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block">Preço Custo</span>
+                <span className="font-bold text-slate-600">{formatMoney(p.buyPrice)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h4 className="font-bold text-slate-800 text-xs md:text-sm">Últimas Movimentações de Stock</h4>
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {stockMovements.map(m => (
+            <div key={m.id} className="flex justify-between items-center p-2 bg-slate-50 rounded-xl text-xs">
+              <div>
+                <span className="font-bold text-slate-800 block">{m.productName}</span>
+                <span className="text-[10px] text-slate-400">{m.date} - {m.reason}</span>
+              </div>
+              <span className={`font-bold px-2 py-0.5 rounded ${
+                m.type === 'ENTRADA' ? 'bg-emerald-100 text-emerald-800' :
+                m.type === 'SAIDA' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+              }`}>
+                {m.type === 'ENTRADA' ? `+${m.qty}` : m.qty}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+          <div className="bg-white rounded-2xl p-4 md:p-6 w-full max-w-md space-y-3">
+            <h3 className="font-bold text-slate-800 text-base">Registar Novo Produto</h3>
+            <input type="text" placeholder="Nome do Produto" value={newProd.name} onChange={(e) => setNewProd({...newProd, name: e.target.value})} className="w-full p-2 text-xs border rounded-lg" />
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex gap-1">
+                <input type="text" placeholder="Código / Barcode" value={newProd.code} onChange={(e) => setNewProd({...newProd, code: e.target.value})} className="w-full p-2 text-xs border rounded-lg" />
+                <button 
+                  type="button"
+                  onClick={() => setShowScannerModal(true)} 
+                  className="bg-slate-900 hover:bg-slate-800 text-amber-400 p-2 rounded-lg transition"
+                  title="Digitalizar Código"
+                >
+                  <Camera size={14} />
+                </button>
+              </div>
+              <input type="text" placeholder="Categoria" value={newProd.category} onChange={(e) => setNewProd({...newProd, category: e.target.value})} className="p-2 text-xs border rounded-lg" />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" placeholder="Preço Custo (MT)" value={newProd.buyPrice} onChange={(e) => setNewProd({...newProd, buyPrice: e.target.value})} className="p-2 text-xs border rounded-lg" />
+              <input type="number" placeholder="Preço Venda (MT)" value={newProd.sellPrice} onChange={(e) => setNewProd({...newProd, sellPrice: e.target.value})} className="p-2 text-xs border rounded-lg" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" placeholder="Stock Inicial" value={newProd.stock} onChange={(e) => setNewProd({...newProd, stock: e.target.value})} className="p-2 text-xs border rounded-lg" />
+              <input type="number" placeholder="Stock Mínimo" value={newProd.minStock} onChange={(e) => setNewProd({...newProd, minStock: e.target.value})} className="p-2 text-xs border rounded-lg" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2 border rounded-xl text-xs font-bold">Cancelar</button>
+              <button onClick={handleAddProduct} className="flex-1 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs">Guardar Produto</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showScannerModal && (
+        <BarcodeScannerModal 
+          onClose={() => setShowScannerModal(false)}
+          onScanSuccess={handleBarcodeScanned}
+          title="Digitalizar Código para Produto"
+        />
+      )}
+    </div>
+  );
+}
+
+// 5. CLIENTS VIEW
+function ClientsView({ clients, setClients, sales, formatMoney }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="font-bold text-slate-800 text-base">Gestão de Clientes & Contas Correntes</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {clients.map(c => (
+          <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div className="flex justify-between items-start">
+              <h4 className="font-bold text-sm text-slate-800">{c.name}</h4>
+              <span className="text-[10px] font-mono text-slate-400">NUIT: {c.nuit}</span>
+            </div>
+            <div className="text-xs text-slate-500 space-y-0.5">
+              <div>Contacto: {c.phone}</div>
+              <div>Endereço: {c.address}</div>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 block">Dívida Actual</span>
+                <span className={`font-extrabold ${c.balance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {formatMoney(c.balance)}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block">Limite Crédito</span>
+                <span className="font-bold text-slate-700">{formatMoney(c.creditLimit)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 6. SUPPLIERS VIEW
+function SuppliersView({ suppliers, setSuppliers, purchases, formatMoney }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="font-bold text-slate-800 text-base">Gestão de Fornecedores</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {suppliers.map(s => (
+          <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div className="flex justify-between items-start">
+              <h4 className="font-bold text-sm text-slate-800">{s.name}</h4>
+              <span className="text-[10px] font-mono text-slate-400">NUIT: {s.nuit}</span>
+            </div>
+            <div className="text-xs text-slate-500 space-y-0.5">
+              <div>Contacto: {s.phone}</div>
+              <div>Email: {s.email}</div>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+              <span className="text-[10px] text-slate-400">Valor Pendente a Pagar:</span>
+              <span className="font-extrabold text-red-600">{formatMoney(s.balance)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 7. FINANCIAL VIEW
+function FinancialView({ financials, setFinancials, sales, purchases, formatMoney }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="font-bold text-slate-800 text-base">Fluxo de Caixa & Transações Financeiras</h3>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-3">
+        <div className="space-y-2">
+          {financials.map(f => (
+            <div key={f.id} className="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl text-xs">
+              <div>
+                <div className="font-bold text-slate-800">{f.description}</div>
+                <div className="text-[10px] text-slate-400">{f.date} - {f.category}</div>
+              </div>
+              <span className={`font-extrabold ${f.type === 'RECEITA' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {f.type === 'RECEITA' ? '+' : '-'}{formatMoney(f.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 8. REPORTS VIEW
+function ReportsView({ sales, purchases, products, clients, suppliers, financials, formatMoney }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="font-bold text-slate-800 text-base">Relatórios de Desempenho Comercial</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+          <h4 className="font-bold text-xs text-slate-700">Relatório Resumido de Vendas</h4>
+          <div className="text-xs text-slate-600 space-y-1">
+            <div className="flex justify-between"><span>Vendas Concluídas:</span><span className="font-bold">{sales.length}</span></div>
+            <div className="flex justify-between"><span>Volume Total:</span><span className="font-bold text-amber-600">{formatMoney(sales.reduce((a, s) => a + s.total, 0))}</span></div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+          <h4 className="font-bold text-xs text-slate-700">Relatório Resumido de Compras</h4>
+          <div className="text-xs text-slate-600 space-y-1">
+            <div className="flex justify-between"><span>Compras Efetuadas:</span><span className="font-bold">{purchases.length}</span></div>
+            <div className="flex justify-between"><span>Custo Total Compras:</span><span className="font-bold text-blue-600">{formatMoney(purchases.reduce((a, p) => a + p.total, 0))}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// INVOICE PRINT MODAL COMPONENT (VIMO STYLED)
+function InvoiceModal({ invoice, onClose, formatMoney }) {
+  return (
+    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl border border-slate-100">
+        <div className="text-center pb-3 border-b border-dashed border-slate-300">
+          <h3 className="font-black text-slate-900 text-base">SIGEC MOÇAMBIQUE</h3>
+          <p className="text-[10px] text-amber-600 font-semibold">Solução Tecnológica VIMO</p>
+          <p className="text-[10px] font-mono text-slate-400 mt-1">Doc Nº: {invoice.id}</p>
+        </div>
+
+        <div className="text-xs space-y-1 text-slate-600">
+          <div className="flex justify-between"><span>Data:</span><span className="font-semibold">{invoice.date}</span></div>
+          <div className="flex justify-between"><span>Cliente:</span><span className="font-semibold">{invoice.clientName}</span></div>
+          <div className="flex justify-between"><span>Pagamento:</span><span className="font-semibold text-amber-700">{invoice.paymentMethod}</span></div>
+        </div>
+
+        <div className="border-t border-b border-slate-200 py-2 space-y-1.5 text-xs max-h-40 overflow-y-auto">
+          {invoice.items.map((item, idx) => (
+            <div key={idx} className="flex justify-between items-center">
+              <div>
+                <div className="font-bold text-slate-800">{item.name}</div>
+                <div className="text-[10px] text-slate-400">{item.qty}x {formatMoney(item.price)}</div>
+              </div>
+              <span className="font-extrabold text-slate-900">{formatMoney(item.total)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between text-slate-500"><span>Subtotal:</span><span>{formatMoney(invoice.subtotal)}</span></div>
+          <div className="flex justify-between text-slate-500"><span>Desconto:</span><span>{formatMoney(invoice.discount)}</span></div>
+          <div className="flex justify-between text-sm font-black text-slate-900 pt-1 border-t">
+            <span>TOTAL:</span>
+            <span className="text-amber-600">{formatMoney(invoice.total)}</span>
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button onClick={onClose} className="flex-1 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Fechar</button>
+          <button onClick={() => window.print()} className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+            <Printer size={14} /> Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
